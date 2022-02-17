@@ -21,7 +21,7 @@ RUN git clone --depth 1 --branch $INDIGO_VERSION https://github.com/epam/indigo 
 
 FROM postgres:13
 
-COPY --from=bingo /indigo/build/bingo-postgres13-linux-aarch64-1.9.1/ /bingo-build
+COPY --from=bingo /indigo/build/bingo-postgres13-linux-*/ /bingo-build
 WORKDIR /bingo-build
 USER root
 RUN cp ./lib/libbingo-postgres.so /usr/lib/postgresql/13/lib && \
