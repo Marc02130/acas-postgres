@@ -1,6 +1,8 @@
+export PGUSER=postgres
 db_exists(){
 	DB_NAME=$1
-	DBEXISTS=`gosu postgres postgres --single -jE <<- EOSQL
+	
+	DBEXISTS=`psql <<- EOSQL
 	   SELECT 1 FROM pg_database WHERE datname='$DB_NAME'
 	EOSQL`
 	if [[ $DBEXISTS =~ "?column? = \"1\"" ]]; then
@@ -11,13 +13,13 @@ db_exists(){
 }
 create_db(){
 	DB_NAME=$1
-	gosu postgres postgres --single -jE <<- EOSQL
+	psql <<- EOSQL
 	   CREATE DATABASE $DB_NAME;
 	EOSQL
 }
 user_exists(){
 	USER=$1
-	USEREXISTS=`gosu postgres postgres --single -jE <<- EOSQL
+	USEREXISTS=`psql <<- EOSQL
 		SELECT 1 FROM pg_catalog.pg_user WHERE usename = '$USER'
 	EOSQL`
 	if [[ $USEREXISTS =~ "?column? = \"1\"" ]]; then
@@ -30,25 +32,25 @@ create_or_alter_user(){
 	USER=$1
 	PASSWORD=$2
 	PASSWORD=$2
-	gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	psql $DB_NAME <<- EOSQL
 	   CREATE USER $USER WITH PASSWORD '$PASSWORD'
 	EOSQL
 }
 grant(){
 	grant=$1
-	gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	psql $DB_NAME <<- EOSQL
 		 grant $grant
 	EOSQL
 }
 alter(){
 	ALTER=$1
-	gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	psql $DB_NAME <<- EOSQL
 		 alter $ALTER
 	EOSQL
 }
 schema_exists(){
 	SCHEMA=$1
-	SCHEMAEXISTS=`gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	SCHEMAEXISTS=`psql $DB_NAME <<- EOSQL
 		SELECT 1 FROM information_schema.schemata WHERE schema_name = '$SCHEMA'
 	EOSQL`
 	if [[ $SCHEMA =~ "?column? = \"1\"" ]]; then
@@ -60,13 +62,13 @@ schema_exists(){
 create_schema(){
 	SCHEMA=$1
 	AUTHORIZATION=$2
-	gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	psql $DB_NAME <<- EOSQL
 	   CREATE SCHEMA $SCHEMA AUTHORIZATION $AUTHORIZATION
 	EOSQL
 }
 run(){
 	run=$1
-	gosu postgres postgres --single -jE $DB_NAME <<- EOSQL
+	psql $DB_NAME <<- EOSQL
 		$run
 	EOSQL
 }
@@ -129,109 +131,12 @@ if [[ $ACAS == "true" ]]; then
 		echo
 	fi
 	echo "******CREATING EXTENSIONS rdkit and btree_gist******"
-	run "CREATE EXTENSION rdkit"
 	run "CREATE EXTENSION btree_gist"
 
-fi
-
-echo "******CHECKING IF CMPDREG NEEDED******"
-CMPDREG=$CMPDREG
-CMPDREG=${CMPDREG:-false}
-if [[ $CMPDREG == "true" ]]; then
-	echo true
-	echo "******CHECKING IF $CMPDREG_ADMIN_USERNAME USER EXISTS******"
-	USEREXISTS=$(user_exists $CMPDREG_ADMIN_USERNAME)
-	if [[ $USEREXISTS == "1" ]]; then
-		echo true
-		echo "******$CMPDREG_ADMIN_USERNAME USER ALREADY EXISTS******"
-		OP=ALTER
-	else
-		echo false
-		OP=CREATE
-	fi
-	echo "******${OP}ing $CMPDREG_ADMIN_USERNAME USER******"
-	create_or_alter_user $CMPDREG_ADMIN_USERNAME $CMPDREG_ADMIN_PASSWORD $OP
-	echo
-
-	echo "******CHECKING IF $CMPDREG_USER_USERNAME USER EXISTS******"
-	USEREXISTS=$(user_exists $CMPDREG_USER_USERNAME)
-	if [[ $USEREXISTS == "1" ]]; then
-		echo true
-		echo "******$CMPDREG_USER_USERNAME USER ALREADY EXISTS******"
-		OP=ALTER
-	else
-		echo false
-		OP=ALTER
-	fi
-	echo "******${OP}ing $CMPDREG_USER_USERNAME USER******"
-	create_or_alter_user $CMPDREG_USER_USERNAME $CMPDREG_USER_PASSWORD $OP
-	echo
-
-	echo "******CHECKING IF $CMPDREG_SCHEMA SCHEMA EXISTS******"
-	SCHEMAEXISTS=$(schema_exists $CMPDREG_SCHEMA)
-	if [[ $SCHEMAEXISTS == "1" ]]; then
-		echo true
-		echo "******$CMPDREG_SCHEMA SCHEMA ALREADY EXISTS******"
-	else
-		echo false
-		echo "******CREATING $CMPDREG_SCHEMA schema******"
-		create_schema $CMPDREG_SCHEMA $CMPDREG_ADMIN_USERNAME
-		echo
-	fi
-	alter "ROLE $CMPDREG_ADMIN_USERNAME SET search_path = $CMPDREG_SCHEMA"
-	grant "CREATE ON database $DB_NAME to $CMPDREG_ADMIN_USERNAME"
-	grant "USAGE ON SCHEMA $CMPDREG_SCHEMA to $CMPDREG_USER_USERNAME"
-	run "CREATE EXTENSION plperl"
-	run "$(cat /indigo-build/bingo_install.sql)"
-	grant "USAGE ON SCHEMA bingo TO $CMPDREG_ADMIN_USERNAME"
-	grant "SELECT ON ALL TABLES IN SCHEMA bingo TO $CMPDREG_ADMIN_USERNAME"
-	grant "EXECUTE ON ALL FUNCTIONS IN SCHEMA bingo TO $CMPDREG_ADMIN_USERNAME"
-	grant "USAGE ON SCHEMA bingo TO $CMPDREG_ADMIN_USERNAME"
-	alter "ROLE $CMPDREG_ADMIN_USERNAME SET search_path = public, $CMPDREG_SCHEMA , bingo"
-else
-	echo false
-fi
-
-echo "******CHECKING IF SEURAT NEEDED******"
-SEURAT=$SEURAT
-SEURAT=${SEURAT:-false}
-if [[ $SEURAT == "true" ]]; then
-	echo true
-	echo "******CHECKING IF $SEURAT_USERNAME USER EXISTS******"
-	USEREXISTS=$(user_exists $SEURAT_USERNAME)
-	if [[ $USEREXISTS == "1" ]]; then
-		echo true
-		echo "******$SEURAT_USERNAME USER ALREADY EXISTS******"
-		OP=ALTER
-	else
-		echo false
-		OP=CREATE
-	fi
-	echo "******CREATING $SEURAT_USERNAME USER******"
-	create_or_alter_user $SEURAT_USERNAME $SEURAT_PASSWORD $OP
-	searchPath=()
-	searchPath+=($SEURAT_SCHEMA)
-	if [[ $ACAS == "true" ]]; then
-		searchPath+=($ACAS_SCHEMA)
-		grant "USAGE ON SCHEMA $ACAS_SCHEMA to seurat"
-		grant "SELECT ON ALL TABLES in SCHEMA $ACAS_SCHEMA to seurat"
-	fi
-	if [[ $CMPDREG == "true" ]]; then
-		searchPath+=($CMPDREG_SCHEMA)
-		grant "USAGE ON SCHEMA $CMPDREG_SCHEMA to seurat"
-		grant "SELECT ON ALL TABLES in SCHEMA $CMPDREG_SCHEMA to seurat"
-	fi
-	searchPath=$(IFS=,; echo "${searchPath[*]}")
-	alter "USER $SEURAT_USERNAME SET search_path to $searchPath"
-	echo "******CHECKING IF $SEURAT_SCHEMA SCHEMA EXISTS******"
-	SCHEMAEXISTS=$(schema_exists $SEURAT_SCHEMA)
-	if [[ $SCHEMAEXISTS == "1" ]]; then
-		echo true
-		echo "******$SEURAT_SCHEMA SCHEMA ALREADY EXISTS******"
-	else
-		echo false
-		echo "******CREATING $SEURAT_SCHEMA schema******"
-		create_schema $SEURAT_SCHEMA $SEURAT_USERNAME
-		echo
-	fi
+	run "$(cat /bingo-build/bingo_install.sql)"
+	grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
+	grant "SELECT ON ALL TABLES IN SCHEMA bingo TO $ACAS_USERNAME"
+	grant "EXECUTE ON ALL FUNCTIONS IN SCHEMA bingo TO $ACAS_USERNAME"
+	grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
+	alter "ROLE $ACAS_USERNAME SET search_path = public, $ACAS_SCHEMA, bingo"
 fi
