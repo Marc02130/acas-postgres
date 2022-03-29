@@ -29,11 +29,9 @@ RUN cp ./lib/libbingo-postgres.so /usr/lib/postgresql/13/lib && \
 
 COPY src/* /docker-entrypoint-initdb.d/
 
-ENV ACAS=true
 ENV ACAS_SCHEMA=acas
 ENV ACAS_USERNAME=acas
 ENV ACAS_PASSWORD=acas
-ENV ACAS_FLYWAY_LOCATION=com.labsynch.labseer.db.migration.postgres,db/migration/postgres,db/migration/indigo/postgres
 ENV DB_NAME=acas
 ENV DB_USER=acas_admin
 ENV DB_PASSWORD=acas_admin
