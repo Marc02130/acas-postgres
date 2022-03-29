@@ -100,43 +100,38 @@ create_or_alter_user $DB_USER $DB_PASSWORD $OP
 grant "ALL PRIVILEGES ON DATABASE $DB_NAME to $DB_USER"
 echo
 
-echo "******CHECKING IF ACAS NEEDED******"
-ACAS=$ACAS
-ACAS=${ACAS:-false}
-if [[ $ACAS == "true" ]]; then
+echo "******CHECKING IF $ACAS_USERNAME USER EXISTS******"
+USEREXISTS=$(user_exists $ACAS_USERNAME)
+if [[ $USEREXISTS == "1" ]]; then
 	echo true
-	echo "******CHECKING IF $ACAS_USERNAME USER EXISTS******"
-	USEREXISTS=$(user_exists $ACAS_USERNAME)
-	if [[ $USEREXISTS == "1" ]]; then
-		echo true
-		echo "******$ACAS_USERNAME USER ALREADY EXISTS******"
-		OP=ALTER
-	else
-		echo false
-		OP=CREATE
-	fi
-	echo "******${OP}ing $ACAS_USERNAME USER******"
-	create_or_alter_user $ACAS_USERNAME $ACAS_PASSWORD $OP
-	echo
-
-	echo "******CHECKING IF $ACAS_SCHEMA SCHEMA EXISTS******"
-	SCHEMAEXISTS=$(schema_exists $ACAS_SCHEMA)
-	if [[ $SCHEMAEXISTS == "1" ]]; then
-		echo true
-		echo "******$ACAS_SCHEMA SCHEMA ALREADY EXISTS******"
-	else
-		echo false
-		echo "******CREATING $ACAS_SCHEMA schema******"
-		create_schema $ACAS_SCHEMA $ACAS_USERNAME
-		echo
-	fi
-	echo "******CREATING EXTENSIONS rdkit and btree_gist******"
-	run "CREATE EXTENSION btree_gist"
-
-	run "$(cat /bingo-build/bingo_install.sql)"
-	grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
-	grant "SELECT ON ALL TABLES IN SCHEMA bingo TO $ACAS_USERNAME"
-	grant "EXECUTE ON ALL FUNCTIONS IN SCHEMA bingo TO $ACAS_USERNAME"
-	grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
-	alter "ROLE $ACAS_USERNAME SET search_path = public, $ACAS_SCHEMA, bingo"
+	echo "******$ACAS_USERNAME USER ALREADY EXISTS******"
+	OP=ALTER
+else
+	echo false
+	OP=CREATE
 fi
+echo "******${OP}ing $ACAS_USERNAME USER******"
+create_or_alter_user $ACAS_USERNAME $ACAS_PASSWORD $OP
+echo
+
+echo "******CHECKING IF $ACAS_SCHEMA SCHEMA EXISTS******"
+SCHEMAEXISTS=$(schema_exists $ACAS_SCHEMA)
+if [[ $SCHEMAEXISTS == "1" ]]; then
+	echo true
+	echo "******$ACAS_SCHEMA SCHEMA ALREADY EXISTS******"
+else
+	echo false
+	echo "******CREATING $ACAS_SCHEMA schema******"
+	create_schema $ACAS_SCHEMA $ACAS_USERNAME
+	echo
+fi
+echo "******CREATING EXTENSIONS rdkit and btree_gist******"
+run "CREATE EXTENSION btree_gist"
+
+run "$(cat /bingo-build/bingo_install.sql)"
+grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
+grant "SELECT ON ALL TABLES IN SCHEMA bingo TO $ACAS_USERNAME"
+grant "EXECUTE ON ALL FUNCTIONS IN SCHEMA bingo TO $ACAS_USERNAME"
+grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
+alter "ROLE $ACAS_USERNAME SET search_path = public, $ACAS_SCHEMA, bingo"
+
