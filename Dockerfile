@@ -29,4 +29,12 @@ RUN cp ./lib/libbingo-postgres.so /usr/lib/postgresql/13/lib && \
 
 COPY src/* /docker-entrypoint-initdb.d/
 
+ENV ACAS_SCHEMA=acas
+ENV ACAS_USERNAME=acas
+ENV ACAS_PASSWORD=acas
+ENV DB_NAME=acas
+ENV DB_USER=acas_admin
+ENV DB_PASSWORD=acas_admin
+ENV POSTGRES_PASSWORD=postgres
+
 CMD ["postgres", "-c", "log_connections=on", "-c", "log_disconnections=on"]
