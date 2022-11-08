@@ -21,6 +21,9 @@ RUN git clone --depth 1 --branch $INDIGO_VERSION https://github.com/epam/indigo 
 
 FROM postgres:13
 
+RUN usermod -u 2005 postgres && \
+    groupmod -g 2005 postgres
+
 COPY --from=bingo /indigo/build/bingo-postgres13-linux-*/ /bingo-build
 WORKDIR /bingo-build
 USER root
