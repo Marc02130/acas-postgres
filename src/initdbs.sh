@@ -125,8 +125,9 @@ else
 	create_schema $ACAS_SCHEMA $ACAS_USERNAME
 	echo
 fi
-echo "******CREATING EXTENSIONS rdkit and btree_gist******"
+echo "******CREATING EXTENSIONS btree_gist and pg_trgm******"
 run "CREATE EXTENSION btree_gist"
+run "CREATE EXTENSION IF NOT EXISTS pg_trgm"
 
 run "$(cat /bingo-build/bingo_install.sql)"
 grant "USAGE ON SCHEMA bingo TO $ACAS_USERNAME"
