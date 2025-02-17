@@ -1,4 +1,6 @@
 export PGUSER=postgres
+export PGDATA=/var/lib/pgsql/15/data
+export PATH=/usr/pgsql-15/bin:$PATH
 db_exists(){
 	DB_NAME=$1
 	
